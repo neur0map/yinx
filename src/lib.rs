@@ -7,8 +7,12 @@
 pub mod cli;
 pub mod config;
 pub mod daemon;
+pub mod embedding;
+pub mod entities;
 pub mod error;
+pub mod filtering;
 pub mod patterns;
+pub mod retrieval;
 pub mod session;
 pub mod storage;
 

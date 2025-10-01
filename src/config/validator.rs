@@ -67,6 +67,14 @@ impl ConfigValidator {
             ));
         }
 
+        // Validate batch size
+        if config.capture.batch_size == 0 {
+            errors.push(ValidationError::new(
+                "capture.batch_size",
+                "Batch size must be greater than 0",
+            ));
+        }
+
         // Validate flush interval format
         let interval = &config.capture.flush_interval;
         if !Self::is_valid_duration_string(interval) {

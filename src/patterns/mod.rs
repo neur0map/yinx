@@ -143,6 +143,7 @@ pub struct CompiledTechnicalPattern {
 }
 
 /// Pattern registry with all pre-compiled patterns
+#[derive(Clone)]
 pub struct PatternRegistry {
     /// Entity extraction patterns
     pub entities: Vec<CompiledEntityPattern>,
@@ -158,6 +159,12 @@ pub struct PatternRegistry {
     pub tier2_technical: Vec<CompiledTechnicalPattern>,
     /// Tier 3 cluster patterns
     pub tier3_cluster: Vec<CompiledNormalizationPattern>,
+    /// Tier 1 configuration
+    pub tier1_config: Tier1Config,
+    /// Tier 2 configuration
+    pub tier2_config: Tier2Config,
+    /// Tier 3 configuration
+    pub tier3_config: Tier3Config,
 }
 
 impl PatternRegistry {
@@ -342,6 +349,9 @@ impl PatternRegistry {
             tier1_normalization,
             tier2_technical,
             tier3_cluster,
+            tier1_config: filters_config.tier1,
+            tier2_config: filters_config.tier2,
+            tier3_config: filters_config.tier3,
         })
     }
 
@@ -466,8 +476,7 @@ mod tests {
             },
         };
 
-        let registry =
-            PatternRegistry::from_configs(config, tools_config, filters_config).unwrap();
+        let registry = PatternRegistry::from_configs(config, tools_config, filters_config).unwrap();
         assert_eq!(registry.entities.len(), 1);
     }
 
@@ -508,8 +517,7 @@ mod tests {
             },
         };
 
-        let registry =
-            PatternRegistry::from_configs(config, tools_config, filters_config).unwrap();
+        let registry = PatternRegistry::from_configs(config, tools_config, filters_config).unwrap();
 
         let text = "Found host at 192.168.1.1 and 10.0.0.1";
         let entities = registry.extract_entities(text);

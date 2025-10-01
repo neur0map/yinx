@@ -93,6 +93,7 @@ impl Daemon {
             self.storage.clone(),
             self.patterns.clone(),
             self.config.capture.buffer_size,
+            self.config.capture.batch_size,
             parse_flush_interval(&self.config.capture.flush_interval),
         );
 

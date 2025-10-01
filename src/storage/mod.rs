@@ -9,7 +9,9 @@ use crate::error::Result;
 use std::path::{Path, PathBuf};
 
 pub use blob::{BlobStore, GcStats};
-pub use database::{Database, DbPool, DbStats};
+pub use database::{
+    CaptureRecord, ChunkRecord, Database, DbPool, DbStats, EmbeddingRecord, EntityRecord,
+};
 
 /// Storage manager that coordinates blob and database storage
 pub struct StorageManager {

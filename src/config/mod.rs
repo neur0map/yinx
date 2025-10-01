@@ -24,6 +24,7 @@ pub struct Config {
     pub embedding: EmbeddingConfig,
     pub llm: LlmConfig,
     pub indexing: IndexingConfig,
+    pub retrieval: RetrievalConfig,
     #[serde(default)]
     pub profiles: HashMap<String, ProfileOverrides>,
 }
@@ -53,6 +54,7 @@ pub struct StorageConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CaptureConfig {
     pub buffer_size: usize,
+    pub batch_size: usize,
     pub flush_interval: String,
 }
 
@@ -76,9 +78,23 @@ pub struct PatternsConfig {
 /// Embedding configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmbeddingConfig {
+    /// Preset model: "all-MiniLM-L6-v2" (recommended)
+    /// Users can change to "bge-small-en-v1.5" or "bge-base-en-v1.5" for higher accuracy
     pub model: String,
-    pub mode: String, // "offline" or "online"
+    /// Operating mode: "offline" (local models) or "online" (API-based)
+    pub mode: String,
+    /// Batch size for embedding generation
     pub batch_size: usize,
+}
+
+impl Default for EmbeddingConfig {
+    fn default() -> Self {
+        Self {
+            model: "all-MiniLM-L6-v2".to_string(), // Preset: 90MB, 384 dims, recommended
+            mode: "offline".to_string(),
+            batch_size: 32,
+        }
+    }
 }
 
 /// LLM configuration
@@ -94,9 +110,61 @@ pub struct LlmConfig {
 /// Indexing configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexingConfig {
+    /// Vector dimension (must match embedding model dimension)
     pub vector_dim: usize,
+    /// HNSW ef_construction parameter (higher = better recall, slower build)
     pub hnsw_ef_construction: usize,
+    /// HNSW M parameter (connections per layer)
     pub hnsw_m: usize,
+}
+
+impl Default for IndexingConfig {
+    fn default() -> Self {
+        Self {
+            vector_dim: 384,           // Matches all-MiniLM-L6-v2 preset
+            hnsw_ef_construction: 200, // Good balance of speed/accuracy
+            hnsw_m: 16,                // Standard value
+        }
+    }
+}
+
+/// Retrieval configuration for hybrid search and reranking
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetrievalConfig {
+    /// Search results multiplier for initial retrieval (limit * multiplier)
+    pub search_multiplier: usize,
+    /// Reciprocal Rank Fusion K constant (higher = less aggressive fusion)
+    pub rrf_k: f32,
+    /// Weight for semantic search results (0.0 to 1.0)
+    pub semantic_weight: f32,
+    /// Weight for keyword search results (0.0 to 1.0)
+    pub keyword_weight: f32,
+    /// HNSW ef_search parameter (higher = better recall, slower search)
+    pub hnsw_ef_search: usize,
+    /// Enable reranking with cross-encoder
+    pub enable_reranking: bool,
+    /// Reranker model name
+    pub reranker_model: String,
+    /// Maximum number of candidates to rerank
+    pub rerank_candidates_limit: usize,
+    /// Minimum similarity score threshold (0.0 to 1.0)
+    pub min_similarity_threshold: f32,
+}
+
+impl Default for RetrievalConfig {
+    fn default() -> Self {
+        Self {
+            search_multiplier: 2,
+            rrf_k: 60.0,
+            semantic_weight: 0.7,
+            keyword_weight: 0.3,
+            hnsw_ef_search: 50,
+            enable_reranking: true,
+            reranker_model: "Xenova/ms-marco-MiniLM-L-6-v2".to_string(),
+            rerank_candidates_limit: 100,
+            min_similarity_threshold: 0.0,
+        }
+    }
 }
 
 /// Profile-specific configuration overrides
@@ -238,6 +306,7 @@ impl Default for Config {
             },
             capture: CaptureConfig {
                 buffer_size: 10000,
+                batch_size: 100,
                 flush_interval: "5s".to_string(),
             },
             daemon: DaemonConfig {
@@ -263,11 +332,8 @@ impl Default for Config {
                 model: "llama-3.1-70b".to_string(),
                 temperature: 0.1,
             },
-            indexing: IndexingConfig {
-                vector_dim: 384,
-                hnsw_ef_construction: 200,
-                hnsw_m: 16,
-            },
+            indexing: IndexingConfig::default(),
+            retrieval: RetrievalConfig::default(),
             profiles: HashMap::new(),
         }
     }

@@ -11,6 +11,39 @@ async fn test_daemon_ipc_and_storage() {
     let temp_dir = TempDir::new().unwrap();
     let base_path = temp_dir.path().to_path_buf();
 
+    // Create minimal pattern config files for test
+    let entities_file = base_path.join("entities.toml");
+    let tools_file = base_path.join("tools.toml");
+    let filters_file = base_path.join("filters.toml");
+
+    std::fs::write(&entities_file, "entity = []\n").unwrap();
+    std::fs::write(&tools_file, "tool = []\n").unwrap();
+    std::fs::write(
+        &filters_file,
+        r#"
+[tier1]
+max_occurrences = 3
+normalization_patterns = []
+
+[tier2]
+entropy_weight = 0.3
+uniqueness_weight = 0.3
+technical_weight = 0.2
+change_weight = 0.2
+score_threshold_percentile = 0.8
+max_technical_score = 10.0
+technical_patterns = []
+
+[tier3]
+cluster_min_size = 2
+max_cluster_size = 1000
+representative_strategy = "highest_entropy"
+cluster_patterns = []
+preserve_metadata = []
+"#,
+    )
+    .unwrap();
+
     // Create storage
     let storage = StorageManager::new(base_path.clone()).unwrap();
 
@@ -34,7 +67,11 @@ async fn test_daemon_ipc_and_storage() {
     config.daemon.log_file = log_file;
     config.storage.data_dir = base_path.clone();
     config.capture.buffer_size = 100;
+    config.capture.batch_size = 10;
     config.capture.flush_interval = "1s".to_string(); // Fast flush for testing
+    config.patterns.entities_file = entities_file;
+    config.patterns.tools_file = tools_file;
+    config.patterns.filters_file = filters_file;
 
     // Create and start daemon in foreground (not daemonized)
     let mut daemon = Daemon::new(config).unwrap();

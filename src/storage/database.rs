@@ -12,6 +12,7 @@ use std::path::Path;
 pub type DbPool = Pool<SqliteConnectionManager>;
 
 /// Database manager with migration support
+#[derive(Clone)]
 pub struct Database {
     pool: DbPool,
 }
@@ -143,6 +144,303 @@ impl Database {
             total_size_bytes: total_size as u64,
         })
     }
+
+    /// Insert entities for a capture
+    pub fn insert_entities(
+        &self,
+        capture_id: i64,
+        entities: &[(String, String, String, f32)], // (type, value, context, confidence)
+    ) -> Result<usize> {
+        let conn = self.get_conn()?;
+        let mut inserted = 0;
+
+        for (entity_type, value, context, confidence) in entities {
+            conn.execute(
+                "INSERT INTO entities (capture_id, type, value, context, confidence)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![capture_id, entity_type, value, context, confidence],
+            )?;
+            inserted += 1;
+        }
+
+        Ok(inserted)
+    }
+
+    /// Query entities by capture ID
+    pub fn get_entities_for_capture(&self, capture_id: i64) -> Result<Vec<EntityRecord>> {
+        let conn = self.get_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, capture_id, type, value, context, confidence
+             FROM entities WHERE capture_id = ?1",
+        )?;
+
+        let entities = stmt
+            .query_map([capture_id], |row| {
+                Ok(EntityRecord {
+                    id: row.get(0)?,
+                    capture_id: row.get(1)?,
+                    entity_type: row.get(2)?,
+                    value: row.get(3)?,
+                    context: row.get(4)?,
+                    confidence: row.get(5)?,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(entities)
+    }
+
+    /// Query entities by type
+    pub fn get_entities_by_type(&self, entity_type: &str) -> Result<Vec<EntityRecord>> {
+        let conn = self.get_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, capture_id, type, value, context, confidence
+             FROM entities WHERE type = ?1",
+        )?;
+
+        let entities = stmt
+            .query_map([entity_type], |row| {
+                Ok(EntityRecord {
+                    id: row.get(0)?,
+                    capture_id: row.get(1)?,
+                    entity_type: row.get(2)?,
+                    value: row.get(3)?,
+                    context: row.get(4)?,
+                    confidence: row.get(5)?,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(entities)
+    }
+
+    /// Insert an embedding for a chunk
+    ///
+    /// # Arguments
+    /// * `chunk_id` - Chunk ID (foreign key to chunks table)
+    /// * `vector` - Embedding vector as bytes (serialized f32 array)
+    /// * `model` - Model name used for embedding
+    pub fn insert_embedding(&self, chunk_id: i64, vector: &[u8], model: &str) -> Result<()> {
+        let conn = self.get_conn()?;
+        let now = chrono::Utc::now().timestamp();
+
+        conn.execute(
+            "INSERT OR REPLACE INTO embeddings (chunk_id, vector, model, created_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![chunk_id, vector, model, now],
+        )?;
+
+        Ok(())
+    }
+
+    /// Insert multiple embeddings in batch
+    pub fn insert_embeddings_batch(
+        &self,
+        embeddings: &[(i64, Vec<u8>, String)], // (chunk_id, vector, model)
+    ) -> Result<usize> {
+        let conn = self.get_conn()?;
+        let now = chrono::Utc::now().timestamp();
+        let mut inserted = 0;
+
+        for (chunk_id, vector, model) in embeddings {
+            conn.execute(
+                "INSERT OR REPLACE INTO embeddings (chunk_id, vector, model, created_at)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![chunk_id, vector, model, now],
+            )?;
+            inserted += 1;
+        }
+
+        Ok(inserted)
+    }
+
+    /// Get embedding for a chunk
+    pub fn get_embedding(&self, chunk_id: i64) -> Result<Option<EmbeddingRecord>> {
+        let conn = self.get_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT chunk_id, vector, model, created_at
+             FROM embeddings WHERE chunk_id = ?1",
+        )?;
+
+        let result = stmt.query_row([chunk_id], |row| {
+            Ok(EmbeddingRecord {
+                chunk_id: row.get(0)?,
+                vector: row.get(1)?,
+                model: row.get(2)?,
+                created_at: row.get(3)?,
+            })
+        });
+
+        match result {
+            Ok(record) => Ok(Some(record)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Get all chunks that don't have embeddings yet
+    pub fn get_chunks_without_embeddings(&self) -> Result<Vec<ChunkRecord>> {
+        let conn = self.get_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT c.id, c.capture_id, c.blob_hash, c.representative_text,
+                    c.cluster_size, c.metadata
+             FROM chunks c
+             LEFT JOIN embeddings e ON c.id = e.chunk_id
+             WHERE e.chunk_id IS NULL",
+        )?;
+
+        let chunks = stmt
+            .query_map([], |row| {
+                Ok(ChunkRecord {
+                    id: row.get(0)?,
+                    capture_id: row.get(1)?,
+                    blob_hash: row.get(2)?,
+                    representative_text: row.get(3)?,
+                    cluster_size: row.get(4)?,
+                    metadata: row.get(5)?,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(chunks)
+    }
+
+    /// Get chunk by ID
+    pub fn get_chunk(&self, chunk_id: i64) -> Result<Option<ChunkRecord>> {
+        let conn = self.get_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, capture_id, blob_hash, representative_text, cluster_size, metadata
+             FROM chunks WHERE id = ?1",
+        )?;
+
+        let mut rows = stmt.query(params![chunk_id])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(ChunkRecord {
+                id: row.get(0)?,
+                capture_id: row.get(1)?,
+                blob_hash: row.get(2)?,
+                representative_text: row.get(3)?,
+                cluster_size: row.get(4)?,
+                metadata: row.get(5)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Get multiple chunks by IDs
+    pub fn get_chunks(&self, chunk_ids: &[i64]) -> Result<Vec<ChunkRecord>> {
+        if chunk_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let conn = self.get_conn()?;
+        let placeholders = chunk_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let query = format!(
+            "SELECT id, capture_id, blob_hash, representative_text, cluster_size, metadata
+             FROM chunks WHERE id IN ({})",
+            placeholders
+        );
+
+        let mut stmt = conn.prepare(&query)?;
+        let params: Vec<&dyn rusqlite::ToSql> = chunk_ids
+            .iter()
+            .map(|id| id as &dyn rusqlite::ToSql)
+            .collect();
+
+        let chunks = stmt
+            .query_map(params.as_slice(), |row| {
+                Ok(ChunkRecord {
+                    id: row.get(0)?,
+                    capture_id: row.get(1)?,
+                    blob_hash: row.get(2)?,
+                    representative_text: row.get(3)?,
+                    cluster_size: row.get(4)?,
+                    metadata: row.get(5)?,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(chunks)
+    }
+
+    /// Get capture info (for provenance)
+    pub fn get_capture(&self, capture_id: i64) -> Result<Option<CaptureRecord>> {
+        let conn = self.get_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, session_id, timestamp, command, output_hash, tool, exit_code, cwd
+             FROM captures WHERE id = ?1",
+        )?;
+
+        let mut rows = stmt.query(params![capture_id])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(CaptureRecord {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                timestamp: row.get(2)?,
+                command: row.get(3)?,
+                output_hash: row.get(4)?,
+                tool: row.get(5)?,
+                exit_code: row.get(6)?,
+                cwd: row.get(7)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Count embeddings in database
+    pub fn count_embeddings(&self) -> Result<usize> {
+        let conn = self.get_conn()?;
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))?;
+        Ok(count as usize)
+    }
+}
+
+/// Embedding database record
+#[derive(Debug, Clone)]
+pub struct EmbeddingRecord {
+    pub chunk_id: i64,
+    pub vector: Vec<u8>,
+    pub model: String,
+    pub created_at: i64,
+}
+
+/// Chunk database record
+#[derive(Debug, Clone)]
+pub struct ChunkRecord {
+    pub id: i64,
+    pub capture_id: i64,
+    pub blob_hash: String,
+    pub representative_text: String,
+    pub cluster_size: i32,
+    pub metadata: Option<String>,
+}
+
+/// Capture database record
+#[derive(Debug, Clone)]
+pub struct CaptureRecord {
+    pub id: i64,
+    pub session_id: String,
+    pub timestamp: i64,
+    pub command: Option<String>,
+    pub output_hash: String,
+    pub tool: Option<String>,
+    pub exit_code: Option<i32>,
+    pub cwd: Option<String>,
+}
+
+/// Entity database record
+#[derive(Debug, Clone)]
+pub struct EntityRecord {
+    pub id: i64,
+    pub capture_id: i64,
+    pub entity_type: String,
+    pub value: String,
+    pub context: Option<String>,
+    pub confidence: f32,
 }
 
 /// Database statistics
