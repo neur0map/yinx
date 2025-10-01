@@ -1,0 +1,192 @@
+# Rust
+target/
+Cargo.lock  # Remove this line if this is a binary project
+**/*.rs.bk
+*.pdb
+
+# Build artifacts
+/bin/
+/pkg/
+*.wasm
+
+# Test and coverage
+*.profraw
+*.profdata
+/coverage/
+/tarpaulin-report.html
+/cobertura.xml
+
+# Benchmarks
+/criterion/
+/bench-*/
+
+# Documentation
+/target/doc/
+/book/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+.project
+.classpath
+.settings/
+.vscode-test/
+*.code-workspace
+
+# Claude Code
+.claude/
+.claudesync/
+*.claude.md
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+secrets.toml
+config.local.toml
+
+# Yinx runtime data (local testing)
+.yinx/
+*.yinx.db
+/store/
+/reports/
+/test-data/
+/tmp/
+*.sock
+
+# Logs
+*.log
+logs/
+daemon.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~.nib
+*.pid
+
+# Package managers
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (if using any Python tooling)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+ENV/
+.venv
+
+# Distribution / Releases
+dist/
+*.tar.gz
+*.zip
+*.dmg
+*.deb
+*.rpm
+
+# Profiling and debugging
+flamegraph.svg
+perf.data
+perf.data.old
+massif.out.*
+callgrind.out.*
+
+# JetBrains
+.idea/
+*.iml
+out/
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+
+# Emacs
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+
+# CTags
+tags
+TAGS
+
+# SQLite databases (local testing)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# macOS
+.AppleDouble
+.LSOverride
+Icon
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Backup files
+*.bak
+*.gho
+*.ori
+*.orig
+*.backup
+
+# Patch files
+*.patch
+*.diff
+
+# CI/CD
+.gitlab-ci-local/
+
+
+# Added by cargo
+
+/target

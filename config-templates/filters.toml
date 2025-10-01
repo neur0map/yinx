@@ -1,0 +1,174 @@
+# Yinx Filtering Configuration
+# Three-tier filtering pipeline to reduce 100K lines → ~100 semantic chunks
+
+[tier1]
+# Hash-based deduplication to remove repetitive lines
+# Performance target: <1ms per line
+
+# Maximum number of times a normalized pattern can appear before being discarded
+# Default: 3 (first 3 occurrences kept, rest discarded)
+max_occurrences = 3
+
+# Normalization patterns - replace dynamic values with placeholders for deduplication
+# Applied in order of priority
+[[tier1.normalization_patterns]]
+name = "ip_address"
+pattern = '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
+replacement = "__IP__"
+priority = 1
+
+[[tier1.normalization_patterns]]
+name = "port"
+pattern = '\b\d{1,5}/(tcp|udp)\b'
+replacement = "__PORT__"
+priority = 2
+
+[[tier1.normalization_patterns]]
+name = "url"
+pattern = 'https?://[^\s]+'
+replacement = "__URL__"
+priority = 3
+
+[[tier1.normalization_patterns]]
+name = "hash_md5"
+pattern = '\b[0-9a-f]{32}\b'
+replacement = "__HASH_MD5__"
+priority = 4
+
+[[tier1.normalization_patterns]]
+name = "hash_sha256"
+pattern = '\b[0-9a-f]{64}\b'
+replacement = "__HASH_SHA256__"
+priority = 5
+
+[[tier1.normalization_patterns]]
+name = "uuid"
+pattern = '\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b'
+replacement = "__UUID__"
+priority = 6
+
+[[tier1.normalization_patterns]]
+name = "timestamp"
+pattern = '\b\d{10,13}\b'
+replacement = "__TIMESTAMP__"
+priority = 7
+
+[[tier1.normalization_patterns]]
+name = "number"
+pattern = '\b\d+\b'
+replacement = "__NUM__"
+priority = 10
+
+[tier2]
+# Statistical scoring to identify important lines
+# Performance target: ~0.1ms per line
+# Reduction: 10K → ~2K (80%)
+
+# Weights for scoring components (must sum to 1.0)
+# Higher weight = more influence on final score
+
+# Entropy weight (0.0-1.0)
+# Higher values prioritize information-dense lines with varied character distribution
+# Default: 0.3
+entropy_weight = 0.3
+
+# Uniqueness weight (0.0-1.0)
+# Higher values prioritize rare/unique lines
+# Default: 0.3
+uniqueness_weight = 0.3
+
+# Technical content weight (0.0-1.0)
+# Higher values prioritize lines containing IPs, ports, CVEs, etc.
+# Default: 0.2
+technical_weight = 0.2
+
+# Change detection weight (0.0-1.0)
+# Higher values prioritize lines different from previous line
+# Default: 0.2
+change_weight = 0.2
+
+# Percentile threshold for keeping lines (0.0-1.0)
+# 0.8 = keep top 20%, 0.9 = keep top 10%, 0.7 = keep top 30%
+# Default: 0.8 (keep top 20%)
+score_threshold_percentile = 0.8
+
+# Technical content patterns for scoring
+# Each match contributes (count * weight) to technical score
+[[tier2.technical_patterns]]
+name = "ip_address"
+pattern = '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
+weight = 1.0
+
+[[tier2.technical_patterns]]
+name = "port"
+pattern = '\b\d{1,5}/(tcp|udp)\b'
+weight = 1.0
+
+[[tier2.technical_patterns]]
+name = "url"
+pattern = 'https?://'
+weight = 1.0
+
+[[tier2.technical_patterns]]
+name = "cve"
+pattern = 'CVE-\d{4}-\d{4,}'
+weight = 2.0
+
+[[tier2.technical_patterns]]
+name = "hash"
+pattern = '\b[0-9a-f]{32,}\b'
+weight = 0.8
+
+[[tier2.technical_patterns]]
+name = "base64"
+pattern = '[A-Za-z0-9+/]{20,}={0,2}'
+weight = 0.5
+
+[[tier2.technical_patterns]]
+name = "email"
+pattern = '\b[\w\.-]+@[\w\.-]+\.\w+\b'
+weight = 0.7
+
+[[tier2.technical_patterns]]
+name = "path"
+pattern = '(/[\w\-./]+)|([A-Z]:\\[\w\-\\]+)'
+weight = 0.6
+
+# Maximum technical score for normalization
+# Total weighted matches divided by this value = normalized score [0, 1]
+max_technical_score = 10.0
+
+[tier3]
+# Semantic clustering to group similar lines and select representatives
+# Performance target: ~50ms total
+# Reduction: 2K → ~100 (95%)
+
+# Minimum cluster size (lines with same normalized pattern)
+# Clusters smaller than this are kept as-is
+cluster_min_size = 2
+
+# Maximum cluster size (prevent huge clusters)
+# If exceeded, split into multiple clusters
+max_cluster_size = 1000
+
+# Representative selection strategy: "first", "longest", "highest_entropy"
+representative_strategy = "highest_entropy"
+
+# Additional normalization for clustering (more aggressive than tier1)
+[[tier3.cluster_patterns]]
+name = "version_numbers"
+pattern = '\b\d+\.\d+\.\d+\b'
+replacement = "__VER__"
+
+[[tier3.cluster_patterns]]
+name = "timestamps_full"
+pattern = '\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}'
+replacement = "__DATETIME__"
+
+[[tier3.cluster_patterns]]
+name = "hex_strings"
+pattern = '0x[0-9a-fA-F]+'
+replacement = "__HEX__"
+
+# Metadata to preserve for each cluster
+preserve_metadata = ["count", "pattern", "first_seen", "last_seen"]

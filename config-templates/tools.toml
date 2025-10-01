@@ -1,0 +1,299 @@
+# Yinx Tool Detection Configuration
+# Defines patterns for detecting penetration testing tools and parsing their output
+
+[[tool]]
+name = "nmap"
+command_patterns = ['^nmap\b', '--script', '-sV', '-sC', '-sS', '-sT', '-sU']
+entity_hints = ["ip_address", "port", "service_version", "hostname"]
+[[tool.output_patterns]]
+pattern = 'PORT\s+STATE\s+SERVICE'
+section = "port_scan_header"
+[[tool.output_patterns]]
+pattern = '\d+/(tcp|udp)\s+open'
+section = "open_port"
+[[tool.output_patterns]]
+pattern = '\d+/(tcp|udp)\s+closed'
+section = "closed_port"
+[[tool.output_patterns]]
+pattern = '\d+/(tcp|udp)\s+filtered'
+section = "filtered_port"
+[[tool.output_patterns]]
+pattern = 'Service Info:'
+section = "service_info"
+
+[[tool]]
+name = "gobuster"
+command_patterns = ['^gobuster\b', 'gobuster dir', 'gobuster dns', 'gobuster vhost']
+entity_hints = ["url", "file_path_unix", "hostname"]
+[[tool.output_patterns]]
+pattern = 'Status:\s+200'
+section = "found_200"
+[[tool.output_patterns]]
+pattern = 'Status:\s+301'
+section = "redirect_301"
+[[tool.output_patterns]]
+pattern = 'Status:\s+302'
+section = "redirect_302"
+[[tool.output_patterns]]
+pattern = 'Status:\s+403'
+section = "forbidden"
+[[tool.output_patterns]]
+pattern = 'Status:\s+401'
+section = "unauthorized"
+
+[[tool]]
+name = "ffuf"
+command_patterns = ['^ffuf\b', '-u', '-w']
+entity_hints = ["url", "file_path_unix"]
+[[tool.output_patterns]]
+pattern = '\[Status:\s+200'
+section = "found_200"
+[[tool.output_patterns]]
+pattern = '\[Status:\s+403'
+section = "forbidden"
+
+[[tool]]
+name = "hydra"
+command_patterns = ['^hydra\b', 'Hydra v']
+entity_hints = ["credential_password", "ip_address", "port"]
+[[tool.output_patterns]]
+pattern = '\[.*\]\[.*\] host:.*login:.*password:'
+section = "valid_credential"
+[[tool.output_patterns]]
+pattern = 'valid password found'
+section = "success"
+
+[[tool]]
+name = "sqlmap"
+command_patterns = ['^sqlmap\b', 'sqlmap.py', '--batch']
+entity_hints = ["url", "sql_injection"]
+[[tool.output_patterns]]
+pattern = 'sqlmap identified'
+section = "vulnerable"
+[[tool.output_patterns]]
+pattern = 'Parameter.*is vulnerable'
+section = "vulnerable_param"
+[[tool.output_patterns]]
+pattern = 'available databases'
+section = "databases"
+
+[[tool]]
+name = "nikto"
+command_patterns = ['^nikto\b', '-h']
+entity_hints = ["url", "cve", "service_version"]
+[[tool.output_patterns]]
+pattern = '\+ OSVDB-'
+section = "vulnerability"
+[[tool.output_patterns]]
+pattern = '\+ CVE-'
+section = "cve"
+
+[[tool]]
+name = "dirb"
+command_patterns = ['^dirb\b']
+entity_hints = ["url", "file_path_unix"]
+[[tool.output_patterns]]
+pattern = '==> DIRECTORY:'
+section = "directory"
+[[tool.output_patterns]]
+pattern = '\+ http'
+section = "found_url"
+
+[[tool]]
+name = "wfuzz"
+command_patterns = ['^wfuzz\b', '-w', '-u']
+entity_hints = ["url"]
+[[tool.output_patterns]]
+pattern = '\d{3}\s+\d+\s+\d+'
+section = "result"
+
+[[tool]]
+name = "metasploit"
+command_patterns = ['^msfconsole', '^msfvenom', 'msf >']
+entity_hints = ["ip_address", "port", "cve", "file_path_unix"]
+[[tool.output_patterns]]
+pattern = '\[\*\] Meterpreter session'
+section = "session_opened"
+[[tool.output_patterns]]
+pattern = '\[+\] '
+section = "success"
+[[tool.output_patterns]]
+pattern = '\[-\] Exploit failed'
+section = "failed"
+
+[[tool]]
+name = "searchsploit"
+command_patterns = ['^searchsploit\b']
+entity_hints = ["cve", "file_path_unix"]
+[[tool.output_patterns]]
+pattern = '/exploits/'
+section = "exploit_path"
+
+[[tool]]
+name = "john"
+command_patterns = ['^john\b', '--wordlist']
+entity_hints = ["credential_password", "hash_md5", "hash_sha256", "hash_ntlm"]
+[[tool.output_patterns]]
+pattern = '\(.*\)\s+.*\s+\('
+section = "cracked"
+
+[[tool]]
+name = "hashcat"
+command_patterns = ['^hashcat\b', '-m', '-a']
+entity_hints = ["hash_md5", "hash_sha256", "hash_ntlm", "credential_password"]
+[[tool.output_patterns]]
+pattern = 'Status.*Cracked'
+section = "cracked"
+
+[[tool]]
+name = "crackmapexec"
+command_patterns = ['^crackmapexec\b', '^cme\b']
+entity_hints = ["ip_address", "credential_password", "hash_ntlm"]
+[[tool.output_patterns]]
+pattern = '\[+\]'
+section = "success"
+[[tool.output_patterns]]
+pattern = 'Pwn3d!'
+section = "pwned"
+
+[[tool]]
+name = "enum4linux"
+command_patterns = ['^enum4linux\b', '-a']
+entity_hints = ["ip_address", "hostname", "credential_password"]
+[[tool.output_patterns]]
+pattern = '\[+\] Got domain/workgroup name:'
+section = "domain_info"
+[[tool.output_patterns]]
+pattern = 'user:\['
+section = "user_enum"
+
+[[tool]]
+name = "smbclient"
+command_patterns = ['^smbclient\b', '-L', '-N']
+entity_hints = ["ip_address", "file_path_windows"]
+[[tool.output_patterns]]
+pattern = 'Sharename'
+section = "shares"
+
+[[tool]]
+name = "rpcclient"
+command_patterns = ['^rpcclient\b']
+entity_hints = ["ip_address"]
+[[tool.output_patterns]]
+pattern = 'user:\['
+section = "user"
+
+[[tool]]
+name = "ldapsearch"
+command_patterns = ['^ldapsearch\b', '-x', '-b']
+entity_hints = ["hostname", "email"]
+[[tool.output_patterns]]
+pattern = 'dn:'
+section = "ldap_entry"
+
+[[tool]]
+name = "bloodhound"
+command_patterns = ['^bloodhound', 'SharpHound']
+entity_hints = ["hostname", "file_path_windows"]
+[[tool.output_patterns]]
+pattern = 'Enumeration Completed'
+section = "completed"
+
+[[tool]]
+name = "responder"
+command_patterns = ['^responder\b', '-I']
+entity_hints = ["ip_address", "hash_ntlm", "credential_password"]
+[[tool.output_patterns]]
+pattern = '\[+\] Listening'
+section = "listening"
+[[tool.output_patterns]]
+pattern = 'NTLMv2'
+section = "hash_captured"
+
+[[tool]]
+name = "impacket"
+command_patterns = ['impacket', 'psexec.py', 'smbexec.py', 'wmiexec.py', 'secretsdump.py']
+entity_hints = ["ip_address", "hash_ntlm", "credential_password"]
+[[tool.output_patterns]]
+pattern = '\[\*\] Requesting shares'
+section = "enumeration"
+
+[[tool]]
+name = "evil-winrm"
+command_patterns = ['^evil-winrm\b', '-i', '-u']
+entity_hints = ["ip_address", "credential_password"]
+[[tool.output_patterns]]
+pattern = 'Evil-WinRM shell'
+section = "shell_spawned"
+
+[[tool]]
+name = "nc"
+command_patterns = ['^nc\b', '^netcat\b', '-l', '-e']
+entity_hints = ["ip_address", "port"]
+[[tool.output_patterns]]
+pattern = 'listening on'
+section = "listener"
+
+[[tool]]
+name = "socat"
+command_patterns = ['^socat\b']
+entity_hints = ["ip_address", "port"]
+[[tool.output_patterns]]
+pattern = 'starting data transfer'
+section = "transfer"
+
+[[tool]]
+name = "burpsuite"
+command_patterns = ['^burp', 'BurpSuite']
+entity_hints = ["url", "cookie", "jwt_token"]
+[[tool.output_patterns]]
+pattern = 'Proxy listening'
+section = "proxy"
+
+[[tool]]
+name = "sqlmap"
+command_patterns = ['^sqlmap', 'sqlmap.py']
+entity_hints = ["url", "sql_injection"]
+[[tool.output_patterns]]
+pattern = 'injectable'
+section = "vulnerable"
+
+[[tool]]
+name = "ssh"
+command_patterns = ['^ssh\b', '-i', '-p']
+entity_hints = ["ip_address", "port", "hostname"]
+[[tool.output_patterns]]
+pattern = 'Permission denied'
+section = "auth_failed"
+
+[[tool]]
+name = "sshpass"
+command_patterns = ['^sshpass\b', '-p']
+entity_hints = ["ip_address", "credential_password"]
+[[tool.output_patterns]]
+pattern = 'Permission denied'
+section = "auth_failed"
+
+[[tool]]
+name = "ftp"
+command_patterns = ['^ftp\b']
+entity_hints = ["ip_address", "file_path_unix"]
+[[tool.output_patterns]]
+pattern = '230 Login successful'
+section = "login_success"
+
+[[tool]]
+name = "wget"
+command_patterns = ['^wget\b', '-O', '--spider']
+entity_hints = ["url", "file_path_unix"]
+[[tool.output_patterns]]
+pattern = 'Saving to:'
+section = "download"
+
+[[tool]]
+name = "curl"
+command_patterns = ['^curl\b', '-X', '-d']
+entity_hints = ["url"]
+[[tool.output_patterns]]
+pattern = 'HTTP/\d\.\d\s+\d{3}'
+section = "response"

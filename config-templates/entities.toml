@@ -1,0 +1,238 @@
+# Yinx Entity Extraction Configuration
+# Defines patterns for extracting structured entities from terminal output
+
+[[entity]]
+type = "ip_address"
+pattern = '\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
+confidence = 0.95
+context_window = 50
+redact = false
+description = "IPv4 address"
+
+[[entity]]
+type = "ip_address_v6"
+pattern = '([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}'
+confidence = 0.95
+context_window = 50
+redact = false
+description = "IPv6 address"
+
+[[entity]]
+type = "port"
+pattern = '\b(\d{1,5})/(tcp|udp)\b'
+confidence = 0.9
+context_window = 30
+redact = false
+description = "Network port with protocol"
+
+[[entity]]
+type = "url"
+pattern = 'https?://[^\s]+'
+confidence = 0.85
+context_window = 40
+redact = false
+description = "HTTP/HTTPS URL"
+
+[[entity]]
+type = "cve"
+pattern = 'CVE-\d{4}-\d{4,}'
+confidence = 1.0
+context_window = 100
+redact = false
+description = "CVE vulnerability identifier"
+
+[[entity]]
+type = "email"
+pattern = '\b[\w\.-]+@[\w\.-]+\.\w+\b'
+confidence = 0.9
+context_window = 30
+redact = false
+description = "Email address"
+
+[[entity]]
+type = "hostname"
+pattern = '\b([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b'
+confidence = 0.75
+context_window = 40
+redact = false
+description = "DNS hostname"
+
+[[entity]]
+type = "mac_address"
+pattern = '([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})'
+confidence = 0.95
+context_window = 30
+redact = false
+description = "MAC address"
+
+# Credential patterns - marked for redaction
+[[entity]]
+type = "credential_password"
+pattern = '(?i)(password|passwd|pwd)\s*[:=]\s*\S+'
+confidence = 0.7
+context_window = 80
+redact = true
+description = "Password credential"
+
+[[entity]]
+type = "credential_api_key"
+pattern = '(?i)(api[_-]?key|apikey)\s*[:=]\s*[\w\-]+'
+confidence = 0.8
+context_window = 60
+redact = true
+description = "API key"
+
+[[entity]]
+type = "credential_token"
+pattern = '(?i)(token|bearer)\s*[:=]?\s*[\w\-\.]+'
+confidence = 0.7
+context_window = 60
+redact = true
+description = "Authentication token"
+
+[[entity]]
+type = "credential_ssh_key"
+pattern = '-----BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY-----'
+confidence = 1.0
+context_window = 100
+redact = true
+description = "SSH private key header"
+
+# File paths
+[[entity]]
+type = "file_path_unix"
+pattern = '/[\w\-./]+'
+confidence = 0.7
+context_window = 40
+redact = false
+description = "Unix file path"
+
+[[entity]]
+type = "file_path_windows"
+pattern = '[A-Z]:\\[\w\-\\]+'
+confidence = 0.85
+context_window = 40
+redact = false
+description = "Windows file path"
+
+# Hashes
+[[entity]]
+type = "hash_md5"
+pattern = '\b[0-9a-f]{32}\b'
+confidence = 0.8
+context_window = 20
+redact = false
+description = "MD5 hash"
+
+[[entity]]
+type = "hash_sha1"
+pattern = '\b[0-9a-f]{40}\b'
+confidence = 0.85
+context_window = 20
+redact = false
+description = "SHA1 hash"
+
+[[entity]]
+type = "hash_sha256"
+pattern = '\b[0-9a-f]{64}\b'
+confidence = 0.85
+context_window = 20
+redact = false
+description = "SHA256 hash"
+
+[[entity]]
+type = "hash_ntlm"
+pattern = '\b[0-9a-f]{32}:[0-9a-f]{32}\b'
+confidence = 0.9
+context_window = 30
+redact = false
+description = "NTLM hash (LM:NT format)"
+
+# Base64 encoded data
+[[entity]]
+type = "base64"
+pattern = '[A-Za-z0-9+/]{20,}={0,2}'
+confidence = 0.6
+context_window = 30
+redact = false
+description = "Base64 encoded string"
+
+# Service banners
+[[entity]]
+type = "service_version"
+pattern = '(?i)(apache|nginx|openssh|mysql|postgresql|microsoft|windows|linux)/[\d\.]+'
+confidence = 0.8
+context_window = 60
+redact = false
+description = "Service version string"
+
+# Version numbers
+[[entity]]
+type = "version"
+pattern = '\b\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?\b'
+confidence = 0.6
+context_window = 40
+redact = false
+description = "Version number (semver)"
+
+# User agents
+[[entity]]
+type = "user_agent"
+pattern = '(?i)User-Agent:\s*.+'
+confidence = 0.9
+context_window = 100
+redact = false
+description = "HTTP User-Agent header"
+
+# Session IDs
+[[entity]]
+type = "session_id"
+pattern = '(?i)(session|sid|phpsessid)\s*[:=]\s*[\w\-]+'
+confidence = 0.75
+context_window = 50
+redact = true
+description = "Session identifier"
+
+# AWS credentials
+[[entity]]
+type = "aws_access_key"
+pattern = 'AKIA[0-9A-Z]{16}'
+confidence = 0.95
+context_window = 50
+redact = true
+description = "AWS access key"
+
+[[entity]]
+type = "aws_secret_key"
+pattern = '(?i)aws[_-]?secret[_-]?access[_-]?key\s*[:=]\s*[\w/+]{40}'
+confidence = 0.9
+context_window = 80
+redact = true
+description = "AWS secret access key"
+
+# JWT tokens
+[[entity]]
+type = "jwt_token"
+pattern = 'eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'
+confidence = 0.9
+context_window = 100
+redact = true
+description = "JWT token"
+
+# SQL injection markers
+[[entity]]
+type = "sql_injection"
+pattern = "(?i)(union\s+select|' or '1'='1|; drop table)"
+confidence = 0.8
+context_window = 80
+redact = false
+description = "SQL injection attempt marker"
+
+# XSS markers
+[[entity]]
+type = "xss_marker"
+pattern = '<script[^>]*>.*?</script>'
+confidence = 0.85
+context_window = 80
+redact = false
+description = "XSS script tag"
